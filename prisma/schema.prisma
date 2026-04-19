@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Subscriber {
+  id            String   @id @default(cuid())
+  vkId          Int      @unique
+  firstName     String
+  lastName      String?
+  avatarUrl     String?
+  status        String   @default("active")
+  planId        String?
+  plan          Plan?    @relation(fields: [planId], references: [id])
+  startDate     DateTime @default(now())
+  endDate       DateTime
+  gracePeriodEnd DateTime?
+  autoPay       Boolean  @default(false)
+  yookassaPaymentMethodId String?
+  reminderSent7d  Boolean @default(false)
+  reminderSent3d  Boolean @default(false)
+  reminderSent1d  Boolean @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  payments      Payment[]
+  broadcasts    BroadcastRecipient[]
+  activities    ActivityLog[]
+  @@index([status])
+  @@index([endDate])
+  @@index([vkId])
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String
+  days        Int
+  price       Int
+  description String?
+  active      Boolean  @default(true)
+  subscribers Subscriber[]
+  payments    Payment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  subscriberId    String
+  subscriber      Subscriber @relation(fields: [subscriberId], references: [id])
+  planId          String?
+  plan            Plan?    @relation(fields: [planId], references: [id])
+  amount          Int
+  method          String   @default("sbp")
+  yookassaPaymentId    String?   @unique
+  yookassaConfirmation String?
+  status          String   @default("pending")
+  isRecurrent     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  @@index([status])
+  @@index([subscriberId])
+  @@index([createdAt])
+}
+
+model Broadcast {
+  id          String   @id @default(cuid())
+  message     String
+  target      String
+  customVkIds String?
+  totalSent     Int      @default(0)
+  delivered     Int      @default(0)
+  failed        Int      @default(0)
+  status        String   @default("draft")
+  sentAt        DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  recipients    BroadcastRecipient[]
+}
+
+model BroadcastRecipient {
+  id            String   @id @default(cuid())
+  broadcastId   String
+  broadcast     Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  subscriberId  String
+  subscriber    Subscriber @relation(fields: [subscriberId], references: [id])
+  status        String   @default("pending")
+  error         String?
+  sentAt        DateTime?
+  createdAt     DateTime @default(now())
+  @@index([broadcastId])
+  @@index([subscriberId])
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  type        String   @unique
+  name        String
+  description String?
+  content     String
+  variables   String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  type        String
+  action      String
+  subscriberId String?
+  subscriber   Subscriber? @relation(fields: [subscriberId], references: [id])
+  metadata    String?
+  createdAt   DateTime @default(now())
+  @@index([type])
+  @@index([createdAt])
+}
